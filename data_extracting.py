@@ -5,7 +5,7 @@ def extractBoardingData(path: str):
     return pd.read_csv(path, sep=';')
 
 def extractAirlinesData(path: str):
-    tree = ET.parse(str)
+    tree = ET.parse(path)
     root = tree.getroot()
 
     # Извлечение данных о пользователях, картах и активностях
@@ -64,6 +64,6 @@ def extractSirenaExportFixed(path: str):
         (229, 287), # PaxAdditionalInfo
         (287, 357)  # AgentInfo
     ]
-    return pd.read_fwf(str, colspecs=colspecs)
+    return pd.read_fwf(path, colspecs=colspecs)
 
 
