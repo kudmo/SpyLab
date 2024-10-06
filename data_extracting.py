@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 def extractBoardingData(path: str):
     return pd.read_csv(path, sep=';')
 
-def extractBoardingDataXML(path: str):
+def extractAirlinesData(path: str):
     tree = ET.parse(str)
     root = tree.getroot()
 
@@ -43,7 +43,7 @@ def extractBoardingDataXML(path: str):
 
     # Создание DataFrame
     return pd.DataFrame(data)
-def extractBoardingDataXML(path: str):
+def extractSirenaExportFixed(path: str):
     colspecs = [
         (0, 60),    # PaxName
         (60, 72),   # PaxBirthDate
