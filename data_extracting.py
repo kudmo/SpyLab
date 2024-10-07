@@ -1,10 +1,12 @@
+"""Модуль функций для извлечения данных из файлов в DataFrame"""
 import pandas as pd
 import json
 import xml.etree.ElementTree as ET
-def extractBoardingData(path: str):
+
+def extractBoardingData(path: str) -> pd.DataFrame:
     return pd.read_csv(path, sep=';')
 
-def extractAirlinesData(path: str):
+def extractAirlinesData(path: str)  -> pd.DataFrame:
     tree = ET.parse(path)
     root = tree.getroot()
 
@@ -41,28 +43,28 @@ def extractAirlinesData(path: str):
                     'fare': fare
                 })
 
-    # Создание DataFrame
     return pd.DataFrame(data)
-def extractSirenaExportFixed(path: str):
+
+def extractSirenaExportFixed(path: str) -> pd.DataFrame:
     colspecs = [
         (0, 60),    # PaxName
         (60, 72),   # PaxBirthDate
-        (72, 82),   # DepartDate
-        (82, 92),   # DepartTime
-        (92, 102),  # ArrivalDate
-        (102, 112), # ArrivalTime
-        (112, 122), # FlightCode
-        (122, 128), # ShFrom
-        (128, 134), # Dest
-        (134, 156), # Code
-        (156, 176), # e-Ticket
-        (176, 187), # TravelDoc
-        (187, 197), # Seat
-        (197, 208), # Meal
-        (208, 219), # TrvClsFare
-        (219, 229), # Baggage
-        (229, 287), # PaxAdditionalInfo
-        (287, 357)  # AgentInfo
+        (72, 84),   # DepartDate
+        (84, 96),   # DepartTime
+        (96, 108),  # ArrivalDate
+        (108, 120), # ArrivalTime
+        (120, 132), # FlightCodeSh
+        (132, 138), # From
+        (138, 144), # Dest
+        (144, 150), # Code
+        (150, 168), # e-Ticket
+        (168, 180), # TravelDoc
+        (180, 186), # Seat
+        (186, 192), # Meal
+        (192, 204), # TrvClsFare
+        (204, 216), # Baggage
+        (216, 276), # PaxAdditionalInfo
+        (276, 357)  # AgentInfo
     ]
     return pd.read_fwf(path, colspecs=colspecs)
 
