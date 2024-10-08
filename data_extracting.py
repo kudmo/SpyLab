@@ -61,7 +61,8 @@ def extractSirenaExportFixed(path: str) -> pd.DataFrame:
         (168, 180), # TravelDoc
         (180, 186), # Seat
         (186, 192), # Meal
-        (192, 204), # TrvClsFare
+        (192, 198), # TrvCls
+        (198, 204), # Fare
         (204, 216), # Baggage
         (216, 276), # PaxAdditionalInfo
         (276, 357)  # AgentInfo
