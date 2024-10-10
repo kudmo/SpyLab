@@ -2,6 +2,7 @@
 import pandas as pd
 import json
 import xml.etree.ElementTree as ET
+import re
 
 def extractBoardingData(path: str) -> pd.DataFrame:
     return pd.read_csv(path, sep=';')
@@ -69,7 +70,46 @@ def extractSirenaExportFixed(path: str) -> pd.DataFrame:
     ]
     return pd.read_fwf(path, colspecs=colspecs)
 
+def extractSkyTeamExchange(path: str) -> pd.DataFrame:
+    with open(path, 'r') as yaml_file:
+        data = {'Date': [], 'FlightNumber': [], 'FFKey': [], 'Class': [], 'Fare': [], 'From': [], 'Status': [], 'To' : []}
+        current_date = None
+        flight_number = None
+        flight_from = None
+        flight_status = None
+        flight_to = None
+        ff = []
 
+        for line in yaml_file:
+            line = line.strip().strip(':')
+            # Проверяем, является ли строка датой
+            if re.match(r"^\s*\'(\d{4}-\d{2}-\d{2})\'$", line):
+                current_date = line.strip('\'').strip()
+                continue
+
+            # Проверяем, является ли строка номером рейса
+            if re.match(r"^\s*(\w{2}\d{4})$", line):
+                flight_number = line.strip()
+                continue
+
+            if re.match(r"^\s*FROM:\s\w{3}$", line):
+                flight_from = line.split(': ')[1].strip()
+                continue
+            if re.match(r"^\s*STATUS:\s\w+$", line):
+                flight_status = line.split(': ')[1].strip()
+                continue
+            if re.match(r"^\s*TO:\s\w{3}$", line):
+                flight_to = line.split(': ')[1].strip()
+                data['Date'].append(current_date)
+                data['FlightNumber'].append(flight_number)
+                data['FFKey'].append(None)
+                data['Class'].append(None)
+                data['Fare'].append(None)
+                data['From'].append(flight_from)
+                data['Status'].append(flight_status)
+                data['To'].append(flight_to)
+
+    return pd.DataFrame(data)
 
 def extractFrequentFlyerForumProfiles(path: str):
     """
