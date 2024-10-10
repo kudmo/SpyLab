@@ -92,23 +92,32 @@ def extractSkyTeamExchange(path: str) -> pd.DataFrame:
                 flight_number = line.strip()
                 continue
 
+            match = re.match(r"^\s*(\w{2}\s\d+):\s\{CLASS:\s(\w),\sFARE:\s(\w{6})\}$", line)
+            if match:
+                ff_key, class_value, fare_value = match.groups()
+                ff.append((ff_key, class_value, fare_value))
+                continue
+
             if re.match(r"^\s*FROM:\s\w{3}$", line):
                 flight_from = line.split(': ')[1].strip()
                 continue
+            
             if re.match(r"^\s*STATUS:\s\w+$", line):
                 flight_status = line.split(': ')[1].strip()
                 continue
+            
             if re.match(r"^\s*TO:\s\w{3}$", line):
                 flight_to = line.split(': ')[1].strip()
-                data['Date'].append(current_date)
-                data['FlightNumber'].append(flight_number)
-                data['FFKey'].append(None)
-                data['Class'].append(None)
-                data['Fare'].append(None)
-                data['From'].append(flight_from)
-                data['Status'].append(flight_status)
-                data['To'].append(flight_to)
-
+                for i in ff:
+                    data['Date'].append(current_date)
+                    data['FlightNumber'].append(flight_number)
+                    data['FFKey'].append(i[0])
+                    data['Class'].append(i[1])
+                    data['Fare'].append(i[2])
+                    data['From'].append(flight_from)
+                    data['Status'].append(flight_status)
+                    data['To'].append(flight_to)
+                ff.clear()
     return pd.DataFrame(data)
 
 def extractFrequentFlyerForumProfiles(path: str):
