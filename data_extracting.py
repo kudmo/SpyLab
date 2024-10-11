@@ -110,45 +110,8 @@ def extractFrequentFlyerForumProfiles(path: str):
     return names_table, flights_table, loyality_table,
 
 
-def extract_data_from_file(filepath):
-    '''
-    Функция для извлечения данныx одного файла xlsx из zip
-    '''
-    df = pd.read_excel(filepath, header=None)
-    sequence = df.iloc[0, 7]
-    gender = df.iloc[2, 0]
-    passenger_name = df.iloc[2, 1] if not pd.isna(df.iloc[2, 1]) else "Unknown"
-    flight_number = df.iloc[4, 0] if not pd.isna(df.iloc[4, 0]) else "Unknown"
-    departure_city = df.iloc[4, 3]
-    arrival_city = df.iloc[4, 7]
-    aeroport1 = df.iloc[6, 3]
-    aeroport2 = df.iloc[6, 7]
-    flight_date = df.iloc[8, 0]
-    departure_time = df.iloc[8, 2]
-    pnr = df.iloc[12, 1]
-    ticket_number = df.iloc[12, 4]
-    seat = df.iloc[10, 7]
-    gate = df.iloc[6, 1]
-    y = df.iloc[2, 7]
-    return {
-        'sequence': sequence,
-        'gender': gender,
-        'passenger_name': passenger_name,
-        'flight_number': flight_number,
-        'departure_city': departure_city,
-        'arrival_city': arrival_city,
-        'aeroport1': aeroport1,
-        'aeroport2': aeroport2,
-        'flight_date': flight_date,
-        'departure_time': departure_time,
-        'pnr': pnr,
-        'ticket_number': ticket_number,
-        'seat': seat,
-        'gate': gate,
-        'trvCls': y
-    }
 
-def process_zip_archive_to_df(zip_filepath):
+def extractBoardingPass(zip_filepath):
     """
     Функция для обработки всех файлов в архиве
 
@@ -158,6 +121,44 @@ def process_zip_archive_to_df(zip_filepath):
     df = process_zip_archive_to_df(zip_filepath) 
 
     """
+    def extractOneBoardingPass(filepath):
+        """
+        Функция для извлечения данныx одного файла xlsx из zip
+        """
+        df = pd.read_excel(filepath, header=None)
+        sequence = df.iloc[0, 7]
+        gender = df.iloc[2, 0]
+        passenger_name = df.iloc[2, 1] if not pd.isna(df.iloc[2, 1]) else "Unknown"
+        flight_number = df.iloc[4, 0]
+        departure_city = df.iloc[4, 3]
+        arrival_city = df.iloc[4, 7]
+        aeroport1 = df.iloc[6, 3]
+        aeroport2 = df.iloc[6, 7]
+        flight_date = df.iloc[8, 0]
+        departure_time = df.iloc[8, 2]
+        pnr = df.iloc[12, 1]
+        ticket_number = df.iloc[12, 4]
+        seat = df.iloc[10, 7]
+        gate = df.iloc[6, 1]
+        trvCls = df.iloc[2, 7]
+        return {
+            'sequence': sequence,
+            'gender': gender,
+            'passenger_name': passenger_name,
+            'flight_number': flight_number,
+            'departure_city': departure_city,
+            'arrival_city': arrival_city,
+            'aeroport1': aeroport1,
+            'aeroport2': aeroport2,
+            'flight_date': flight_date,
+            'departure_time': departure_time,
+            'pnr': pnr,
+            'ticket_number': ticket_number,
+            'seat': seat,
+            'gate': gate,
+            'trvCls': trvCls
+        }
+
     extract_dir = "temp_extract"
     os.makedirs(extract_dir, exist_ok=True)
     with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
@@ -167,7 +168,7 @@ def process_zip_archive_to_df(zip_filepath):
     for filename in os.listdir(extract_dir):
         if filename.endswith(".xlsx"):
             filepath = os.path.join(extract_dir, filename)
-            data = extract_data_from_file(filepath)
+            data = extractOneBoardingPass(filepath)
             if data:
                 all_data.append(data)
 
