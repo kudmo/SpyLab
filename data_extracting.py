@@ -2,6 +2,9 @@
 import pandas as pd
 import json
 import xml.etree.ElementTree as ET
+import pdfplumber
+import re
+import PyPDF2, os
 
 def extractBoardingData(path: str) -> pd.DataFrame:
     return pd.read_csv(path, sep=';')
@@ -105,3 +108,65 @@ def extractFrequentFlyerForumProfiles(path: str):
     names_table = extractSubtable("Real Name")
  
     return names_table, flights_table, loyality_table,
+
+
+def convertPdfToDataframe(path: str):
+    with open(path, 'rb') as file:
+        reader = PyPDF2.PdfReader(file)
+
+        num_pages = len(reader.pages)
+
+        # Loop through all the pages and extract text
+        for i in range(num_pages):
+            page = reader.pages[i]
+            text = page.extract_text()
+            print(f"Page {i+1}:\n{text}\n")
+
+
+    # Открываем PDF-файл
+    pdf = pdfplumber.open(path)
+    extracted_data = []
+    last_from = None
+    last_to = None
+
+        # Регулярные выражения для извлечения данных From и To
+    from_pattern = re.compile(r'FROM:\s+(.+?),\s+(.+?)\s+(\w{3})')
+    to_pattern = re.compile(r'TO:\s+(.+?),\s+(.+?)\s+(\w{3})')
+
+        # Регулярное выражение для извлечения строк таблицы (дни: от 0 до 7 цифр)
+    pattern = re.compile(r'(\d{2} \w{3}  -  \d{2} \w{3})\s+(\d{0,7})\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s+(\w+)\s+(\w+)\s+(\d{1}H\d{2}M)')
+
+    for i in range(num_pages):
+        if i % 100 == 0:
+            print(f"Iteration No.{i}")
+        page = reader.pages[i]
+        text = page.extract_text()
+
+            # Попытка извлечь пункты отправления и назначения
+        from_match = from_pattern.search(text)
+        to_match = to_pattern.search(text)
+
+            # Если найден FROM и TO, обновляем последние значения
+        if from_match and to_match:
+            last_from = f"{from_match.group(1)}, {from_match.group(2)} ({from_match.group(3)})"
+            last_to = f"{to_match.group(1)}, {to_match.group(2)} ({to_match.group(3)})"
+
+            # Если на странице нет FROM и TO, остаются последние известные значения
+        if last_from and last_to:
+                # Извлекаем строки таблицы
+            matches = pattern.findall(text)
+
+                # Добавляем найденные строки с полями From и To
+            for match in matches:
+                extracted_data.append(list(match) + [last_from, last_to])
+
+    # Создаем DataFrame
+    columns = ['Validity', 'Days', 'Dep Time', 'Arr Time', 'Flight', 'Aircraft', 'Travel Time', 'From', 'To']
+    df = pd.DataFrame(extracted_data, columns=columns)
+
+    # Вывод DataFrame
+    print(df)
+
+    # Сохранение в CSV (или другой формат)
+    df.to_csv('flights_data.csv', index=False)
+    return df
