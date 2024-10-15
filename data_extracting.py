@@ -3,7 +3,6 @@ import pandas as pd
 import json
 import xml.etree.ElementTree as ET
 import re
-
 import zipfile
 import os
 
@@ -57,7 +56,8 @@ def extractSirenaExportFixed(path: str) -> pd.DataFrame:
         (84, 96),   # DepartTime
         (96, 108),  # ArrivalDate
         (108, 120), # ArrivalTime
-        (120, 132), # FlightCodeSh
+        (120, 126), # Flight
+        (126, 132), # CodeSh
         (132, 138), # From
         (138, 144), # Dest
         (144, 150), # Code
@@ -141,10 +141,8 @@ def extractFrequentFlyerForumProfiles(path: str):
             Args:
                 name (str): Название поля
         """
-        
-        df = [pd.json_normalize(data['Forum Profiles'][0][name])]
-        
-        for i in range(1, len(data['Forum Profiles'])):
+        df = []
+        for i in range(len(data['Forum Profiles'])):
             df_ = pd.json_normalize(data['Forum Profiles'][i][name])
             df_["NickName"] = data['Forum Profiles'][i]['NickName']
 
@@ -158,17 +156,12 @@ def extractFrequentFlyerForumProfiles(path: str):
  
     return names_table, flights_table, loyality_table,
 
-
-
-def extractBoardingPass(zip_filepath):
+def extractBoardingPass(path: str, clear_temp = False):
     """
     Функция для обработки всех файлов в архиве
-
-    Для запуска: 
-        # путь к архиву zip
-    zip_filepath = '.../Airlines-All/Airlines/YourBoardingPassDotAero.zip'
-    df = process_zip_archive_to_df(zip_filepath) 
-
+    
+    Args:
+        clear_temp (bool): Если True - промежуточные разархивированные данные удаляются
     """
     def extractOneBoardingPass(filepath):
         """
@@ -210,7 +203,7 @@ def extractBoardingPass(zip_filepath):
 
     extract_dir = "temp_extract"
     os.makedirs(extract_dir, exist_ok=True)
-    with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
+    with zipfile.ZipFile(path, 'r') as zip_ref:
         zip_ref.extractall(extract_dir)
 
     all_data = []
@@ -222,6 +215,7 @@ def extractBoardingPass(zip_filepath):
                 all_data.append(data)
 
     df = pd.DataFrame(all_data)
-    #os.rmdir(extract_dir)
+    if (clear_temp):
+        os.rmdir(extract_dir)
     return df
     
