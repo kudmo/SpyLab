@@ -2,3 +2,6 @@ Airlines
 
 __pycache__/
 .vscode
+.idea
+.venv
+.DS_Store
