@@ -1,6 +1,6 @@
 import pandas as pd
 import data_extracting
-def merge(yaml_path, json_path, xml_path):
+def merge_yjx(yaml_path, json_path, xml_path):
     a_df = data_extracting.extractSkyTeamExchange(yaml_path)
     b_df = data_extracting.extractFrequentFlyerForumProfiles(json_path)
     c_df = data_extracting.extractAirlinesData(xml_path) 
