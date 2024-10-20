@@ -1,11 +1,12 @@
 import pandas as pd
 
-def mergeBaseInfo(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame):
+def mergeBaseInfo(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame, timetable: pd.DataFrame):
     """
     Объединение базовых данных по паспорту, дате, номеру рейса
     Args:
         df_sirena (pd.DataFrame): DaraFrame из Sirena-export-fixed.tab
         df_boarding (pd.DataFrame): DaraFrame из BoardingData.csv
+        timetable (pd.DataFrame): DaraFrame из Skyteam_Timetable.pdf
     Returns:
         pd.DataFrame: Данные: ['PassengerDocument, 'FlightNumber', 'FlightDate','FlightTime','From','Dest', 'TicketNumber']
     """
@@ -15,6 +16,8 @@ def mergeBaseInfo(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame):
     df_sirena_d['TicketNumber'] = df_sirena_d['TicketNumber'].apply(str)
 
     df_boarding_d = df_boarding[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime', 'TicketNumber']]
+    df_boarding_d = pd.merge(df_boarding_d, timetable[[ 'Flight','From_Code', 'To_Code']],  left_on='FlightNumber', right_on='Flight')
+    df_boarding_d.rename(columns={'From_Code':'From', 'To_Code':'Dest'}, inplace=True)
     df_boarding_d['TicketNumber'] = df_boarding_d['TicketNumber'].apply(lambda col: None if col == 'Not presented' else col)
     df_boarding_d['PassangerName'] = df_boarding['PassengerLastName'] +' ' +  df_boarding['PassengerFirstName'] + ' ' + df_boarding['PassengerSecondName'].apply(lambda col: col[0])
 
@@ -36,6 +39,5 @@ def mergeBaseInfo(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame):
     df_sirena_d['PassengerDocument'] = pass_to_pass['PassengerDocument_y'].fillna(pass_to_pass['PassengerDocument_x'])
 
     # объединение полётов и чистка дубликатов
-    df = pd.concat([df_sirena_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime','TicketNumber']], df_boarding_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime', 'TicketNumber']]]).drop_duplicates()
-    df = pd.merge(df, df_sirena_d[['TicketNumber', 'From' ,'Dest']], on='TicketNumber', how ='outer')
+    df = pd.concat([df_sirena_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime','From', 'Dest','TicketNumber']], df_boarding_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime','From', 'Dest', 'TicketNumber']]]).drop_duplicates()
     return df
