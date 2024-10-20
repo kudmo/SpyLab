@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 import re
 import zipfile
 import os
+import shutil
 
 def extractBoardingData(path: str) -> pd.DataFrame:
     return pd.read_csv(path, sep=';')
@@ -216,6 +217,6 @@ def extractBoardingPass(path: str, clear_temp = False):
 
     df = pd.DataFrame(all_data)
     if (clear_temp):
-        os.rmdir(extract_dir)
+        shutil.rmtree('temp_extract')
     return df
     
