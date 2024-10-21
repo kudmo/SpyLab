@@ -47,7 +47,7 @@ def extractAirlinesData(path: str)  -> pd.DataFrame:
                 })
 
     return pd.DataFrame(data)
-
+# функция для чтения файла .tab возращает таблицу с указанными ниже заголовками столбцов
 def extractSirenaExportFixed(path: str) -> pd.DataFrame:
     colspecs = [
         (0, 60),    # PaxName
