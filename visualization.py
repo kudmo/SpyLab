@@ -65,13 +65,25 @@ def create_flight_graph_app(df):
             flight_date = row['flight_date']
             month = pd.to_datetime(flight_date).month
             year = pd.to_datetime(flight_date).year
+            day = pd.to_datetime(flight_date).day
             color = month_colors[month]
-            line_label = f'{month:02} {year}'
 
+            # Добавление уникальных точек и их индексов
+            if from_coord not in unique_points:
+                unique_points[from_coord] = []
+            if point_counter - 1 not in unique_points.get(from_coord, []):
+                unique_points[from_coord].append(point_counter + 1)
+                point_counter += 2
+            if to_coord not in unique_points:
+                unique_points[to_coord] = []
+            unique_points[to_coord].append(point_counter)
+            point_counter += 1
+
+            line_label = f'{day:02}/{month:02} {year}:   {point_counter-2} --> {point_counter-1}'
             showleg = True
-            if month == previous_month:
-                showleg = False
-            previous_month = month
+            #if month == previous_month:
+            #    showleg = False
+            #previous_month = month
             # Линия полёта
             fig.add_trace(go.Scattergeo(
                 locationmode='ISO-3',
@@ -82,17 +94,6 @@ def create_flight_graph_app(df):
                 name=line_label,
                 showlegend=showleg
             ))
-
-            # Добавление уникальных точек и их индексов
-            if from_coord not in unique_points:
-                unique_points[from_coord] = []
-            if point_counter - 1 not in unique_points.get(from_coord, []):
-                unique_points[from_coord].append(point_counter+1)
-                point_counter += 2
-            if to_coord not in unique_points:
-                unique_points[to_coord] = []
-            unique_points[to_coord].append(point_counter)
-            point_counter += 1
 
         # Отображение вершин с индексами
         for coord, point_numbers in unique_points.items():
@@ -111,7 +112,7 @@ def create_flight_graph_app(df):
         return fig
 
     # Функция для создания графа для всех пассажиров с заданными датами
-    def generate_graphs(start_date, end_date, Nmin, Nmax):
+    def generate_graphs(start_date, end_date, Nmin, Nmax, projection_type):
 
         passenger_counts = df['passenger_id'].value_counts()
         filtered_passengers = passenger_counts[(passenger_counts >= Nmin) & (passenger_counts <= Nmax)].index
@@ -151,7 +152,7 @@ def create_flight_graph_app(df):
                 'showactive': True
             }],
             geo=dict(
-                projection_type='natural earth',
+                projection_type=projection_type,
                 showcoastlines=True,
                 coastlinecolor="black",
                 showland=True,
@@ -182,14 +183,26 @@ def create_flight_graph_app(df):
             dcc.DatePickerSingle(
                 id='end-date-picker',
                 date=datetime(2025, 1, 1),
-                display_format='YYYY-MM-DD'
+                display_format='YYYY-MM-DD',
+                style={'margin-right': '10px'}
             ),
             html.Label("  Мин. кол-во полётов:"),
-            dcc.Input(id='input-Nmin', type='number', value=12, min=1),
+            dcc.Input(id='input-Nmin', type='number', value=12, min=1, style={'width': '50px', 'margin-right': '10px'}),
             html.Label("  Макс. кол-во полётов:"),
-            dcc.Input(id='input-Nmax', type='number', value=15, min=1),
-            html.Button('Применить', id='apply-button', n_clicks=0)
-        ]),
+            dcc.Input(id='input-Nmax', type='number', value=15, min=1, style={'width': '50px', 'margin-right': '10px'}),
+            html.Label("\t\t\tТип проекции: "),
+            dcc.Dropdown(
+                id='projection-type',
+                options=[
+                    {'label': '2D (Natural Earth)', 'value': 'natural earth'},
+                    {'label': '3D (Orthographic)', 'value': 'orthographic'}
+                ],
+                value='natural earth',  # Значение по умолчанию
+                style={'width': '170px', 'display': 'inline-block'},
+                clearable=False
+            ),
+            html.Button('Применить', id='apply-button', n_clicks=0, style={'margin-left': '10px'}),
+            ], style={'display': 'flex', 'align-items': 'center', 'margin-top': '0px', 'margin-bottom': '0px'}),
         dcc.Graph(id='flight-graph', style={'width': '90vw', 'height': '80vh'}),
     ])
 
@@ -200,15 +213,17 @@ def create_flight_graph_app(df):
         [State('start-date-picker', 'date'),
          State('end-date-picker', 'date'),
          State('input-Nmin', 'value'),
-         State('input-Nmax', 'value')]
+         State('input-Nmax', 'value'),
+         State('projection-type', 'value')]
     )
 
-    def update_graph(n_clicks, start_date, end_date, Nmin, Nmax):
+    def update_graph(n_clicks, start_date, end_date, Nmin, Nmax, type):
         # Преобразование дат в формат datetime
         start_date = pd.to_datetime(start_date)
         end_date = pd.to_datetime(end_date)
 
-        return generate_graphs(start_date, end_date, Nmin, Nmax)
+        return generate_graphs(start_date, end_date, Nmin, Nmax, type)
 
     # Запуск приложения
     app.run_server(debug=True)
+
