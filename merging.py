@@ -1,6 +1,6 @@
 import pandas as pd
 
-def mergeBaseInfo(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame, timetable: pd.DataFrame):
+def mergeToDrawFlights(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame):
     """
     Объединение базовых данных по паспорту, дате, номеру рейса
     Args:
@@ -14,10 +14,31 @@ def mergeBaseInfo(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame, timetable
     df_sirena_d = df_sirena[['TravelDoc', 'e-Ticket','Flight','DepartDate', 'DepartTime', 'From', 'Dest', 'PaxName']]
     df_sirena_d.rename(columns={'TravelDoc':'PassengerDocument', 'e-Ticket':'TicketNumber', 'Flight' : 'FlightNumber', 'DepartDate':'FlightDate',  'DepartTime':'FlightTime'}, inplace=True)
     df_sirena_d['TicketNumber'] = df_sirena_d['TicketNumber'].apply(str)
+    
+    # Удаление подозрительных полётов
+    def filter_suspicious(group):
+        most_common_from = group['From'].mode()[0]
+        most_common_dest = group['Dest'].mode()[0]
+        
+        # Находим "частые" и "подозрительные" записи
+        frequent_records = group[(group['From'] == most_common_from) & (group['Dest'] == most_common_dest)]
+        suspicious_records = group[(group['From'] != most_common_from) | (group['Dest'] != most_common_dest)]
+        
+        # Условие: частых записей должно быть как минимум в 5 раз больше, чем подозрительных
+        if len(frequent_records) >= 1 * len(suspicious_records):
+            # Возвращаем только частые записи, подозрительные удаляем
+            return frequent_records
+        else:
+            # Возвращаем всю группу, если условие не выполнено (не удаляем ничего)
+            return group
+
+    # Группируем данные по DepartDate, DepartTime и Flight и применяем фильтрацию
+    filtered_df = df_sirena_d.groupby(['FlightDate', 'FlightTime', 'FlightNumber']).apply(filter_suspicious)
+    # Убираем лишние индексы после группировки
+    filtered_df = filtered_df.reset_index(drop=True)
+    df_sirena_d = filtered_df
 
     df_boarding_d = df_boarding[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime', 'TicketNumber']]
-    df_boarding_d = pd.merge(df_boarding_d, timetable[[ 'Flight','From_Code', 'To_Code']],  left_on='FlightNumber', right_on='Flight')
-    df_boarding_d.rename(columns={'From_Code':'From', 'To_Code':'Dest'}, inplace=True)
     df_boarding_d['TicketNumber'] = df_boarding_d['TicketNumber'].apply(lambda col: None if col == 'Not presented' else col)
     df_boarding_d['PassangerName'] = df_boarding['PassengerLastName'] +' ' +  df_boarding['PassengerFirstName'] + ' ' + df_boarding['PassengerSecondName'].apply(lambda col: col[0])
 
@@ -38,6 +59,12 @@ def mergeBaseInfo(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame, timetable
     # заменяем заграничные паспорта на обычные где можем
     df_sirena_d['PassengerDocument'] = pass_to_pass['PassengerDocument_y'].fillna(pass_to_pass['PassengerDocument_x'])
 
+    df_boarding_d = pd.merge(df_boarding_d, filtered_df[['FlightDate','FlightTime','FlightNumber', 'From', 'Dest']].drop_duplicates(), on=['FlightDate','FlightTime','FlightNumber'], how = 'left')
+    value_counts = df_boarding_d['TicketNumber'].value_counts()
+    # Фильтрация значений, встречающихся более 1 раза
+    frequent_values = value_counts[value_counts > 1].index.tolist()
+    df_boarding_d = df_boarding_d[~df_boarding_d['TicketNumber'].isin(frequent_values)]
+
     # объединение полётов и чистка дубликатов
-    df = pd.concat([df_sirena_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime','From', 'Dest','TicketNumber']], df_boarding_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime','From', 'Dest', 'TicketNumber']]]).drop_duplicates()
+    df = pd.concat([df_sirena_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime', 'From', 'Dest','TicketNumber']], df_boarding_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime','From', 'Dest', 'TicketNumber']]]).dropna().drop_duplicates()
     return df
