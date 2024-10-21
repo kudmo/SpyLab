@@ -6,6 +6,24 @@ import pandas as pd
 from datetime import datetime
 
 
+def get_dataframe_for_work(data, airports):
+
+    data['from_lat'] = data['From'].map(airports.set_index('iata_code')['latitude'])
+    data['from_lon'] = data['From'].map(airports.set_index('iata_code')['longitude'])
+    data['to_lat'] = data['Dest'].map(airports.set_index('iata_code')['latitude'])
+    data['to_lon'] = data['Dest'].map(airports.set_index('iata_code')['longitude'])
+
+    data['from_coords'] = list(zip(data['from_lat'], data['from_lon']))
+    data['to_coords'] = list(zip(data['to_lat'], data['to_lon']))
+
+    data.drop(columns=['From', 'Dest', 'from_lat', 'from_lon', 'to_lat', 'to_lon', 'PaxName', 'PaxBirthDate', 'DepartTime', 'ArrivalDate', 'ArrivalTime', 'Flight', 'CodeSh', 'Code', 'e-Ticket', 'Seat', 'Meal', 'TrvCls', 'Fare', 'Baggage', 'PaxAdditionalInfo', 'AgentInfo'], inplace=True)
+    data.rename(columns={'TravelDoc': 'passenger_id', 'DepartDate': 'flight_date'}, inplace=True)
+
+    data['flight_date'] = pd.to_datetime(data['flight_date'])
+    data = data.sort_values(by='flight_date')
+
+    return data
+
 def create_flight_graph_app(df):
     """
     Функция для создания и запуска Dash приложения, визуализирующего полёты пассажиров на карте.
