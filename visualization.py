@@ -8,7 +8,7 @@ from datetime import datetime
 
 def get_dataframe_for_work(data, airports):
 
-    result = data[['ID','From','To','Date'], ]
+    result = data[['ID','From','To','Date']]
     result['from_lat'] = result['From'].map(airports.set_index('iata_code')['latitude'])
     result['from_lon'] = result['From'].map(airports.set_index('iata_code')['longitude'])
     result['to_lat'] = result['To'].map(airports.set_index('iata_code')['latitude'])
@@ -243,5 +243,5 @@ def create_flight_graph_app(df):
         return generate_graphs(start_date, end_date, Nmin, Nmax, type)
 
     # Запуск приложения
-    app.run_server(debug=True)
+    app.run_server(host="0.0.0.0", debug=False)
 

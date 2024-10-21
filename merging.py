@@ -2,7 +2,7 @@
 import pandas as pd
 import re
 
-def mergeLoyality(df_exchange :pd.DataFrame, df_forum:tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame], df_airlines:pd.DataFrame):
+def mergeLoyality(df_exchange :pd.DataFrame, df_forum:tuple, df_airlines:pd.DataFrame):
     """
     Returns: 
         (tuple): три таблицы: кто и куда летел, кто использовал чужую программу лояльности, все люди которые есть в базе и их индификаторы b и бонусные программы
