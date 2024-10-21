@@ -6,6 +6,7 @@ import re
 import zipfile
 import os
 import shutil
+import pdfplumber
 
 def extractBoardingData(path: str) -> pd.DataFrame:
     return pd.read_csv(path, sep=';')
@@ -157,6 +158,71 @@ def extractFrequentFlyerForumProfiles(path: str):
  
     return names_table, flights_table, loyality_table,
 
+def extractSkyteamTimetable(path: str) ->pd.DataFrame:
+    with pdfplumber.open(path) as pdf:
+        tables = []
+        info1 = {'From':None, 'From_Code':None, 'To':None,'To_Code':None}
+        info2 = {'From':None, 'From_Code':None, 'To':None,'To_Code':None}
+        
+        for page_number in range(4, len(pdf.pages)):
+            data = []
+            page = pdf.pages[page_number]
+            # выделение таблицы
+            table_objects = page.extract_tables()
+
+            data_start = 0
+            # Заголовки таблицы
+            if ('FROM:' in table_objects[0][0]):
+                info1['From'] = table_objects[0][0][1]
+                info1['From_Code'] = table_objects[0][0][7]
+
+                info2['From'] = table_objects[0][0][11:][1]
+                info2['From_Code'] = table_objects[0][0][11:][7]
+
+                info1['To'] = table_objects[0][1][1]
+                info1['To_Code'] = table_objects[0][1][7]
+
+                info2['To'] = table_objects[0][1][11:][1]
+                info2['To_Code'] = table_objects[0][1][11:][7]
+                
+                data_start = 3
+
+            # Пропускаем пустые таблицы
+            if ('Consult your travel agent for details' in table_objects[0][data_start]):
+                continue
+        
+            # Проход по таблице
+            for table_object in table_objects[0]:
+                # очистка от пропусков и от лишних данных
+                cleared = list(filter(lambda x: x is not None and x != '' and 'Operated by' not in x, table_object))
+                if (len(cleared) < 7):
+                    continue
+                have_left = True
+                if (table_object[0] == None or table_object[0] == ''):
+                    have_left = False
+
+                data1 = [info1['From'],info1['From_Code'], info1['To'], info1['To_Code']]
+                data2 = [info2['From'],info2['From_Code'], info2['To'], info2['To_Code']]
+
+                if (len(cleared) == 14):
+                    data1.extend(cleared[:7])
+                    data.append(data1)
+
+                    data2.extend(cleared[7:])
+                    data.append(data2)
+                elif have_left:
+                    data1.extend(cleared)
+                    data.append(data1)
+                else:
+                    data2.extend(cleared)
+                    data.append(data2)
+                    
+
+            tables.append(pd.DataFrame(data, columns=['From','From_Code','To','To_Code','Validity','Days','Dep_Time','Arr_Time','Flight','Aircraft','Travel_Time']))
+            page.flush_cache()
+
+        return pd.concat(tables)
+
 def extractBoardingPass(path: str, clear_temp = False):
     """
     Функция для обработки всех файлов в архиве
@@ -219,4 +285,3 @@ def extractBoardingPass(path: str, clear_temp = False):
     if (clear_temp):
         shutil.rmtree('temp_extract')
     return df
-    
