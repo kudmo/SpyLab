@@ -8,21 +8,21 @@ from datetime import datetime
 
 def get_dataframe_for_work(data, airports):
 
-    data['from_lat'] = data['From'].map(airports.set_index('iata_code')['latitude'])
-    data['from_lon'] = data['From'].map(airports.set_index('iata_code')['longitude'])
-    data['to_lat'] = data['Dest'].map(airports.set_index('iata_code')['latitude'])
-    data['to_lon'] = data['Dest'].map(airports.set_index('iata_code')['longitude'])
+    result = data[['ID','From','To','Date'], ]
+    result['from_lat'] = result['From'].map(airports.set_index('iata_code')['latitude'])
+    result['from_lon'] = result['From'].map(airports.set_index('iata_code')['longitude'])
+    result['to_lat'] = result['To'].map(airports.set_index('iata_code')['latitude'])
+    result['to_lon'] = result['To'].map(airports.set_index('iata_code')['longitude'])
 
-    data['from_coords'] = list(zip(data['from_lat'], data['from_lon']))
-    data['to_coords'] = list(zip(data['to_lat'], data['to_lon']))
+    result['from_coords'] = list(zip(result['from_lat'], result['from_lon']))
+    result['to_coords'] = list(zip(result['to_lat'], result['to_lon']))
 
-    data.drop(columns=['From', 'Dest', 'from_lat', 'from_lon', 'to_lat', 'to_lon', 'PaxName', 'PaxBirthDate', 'DepartTime', 'ArrivalDate', 'ArrivalTime', 'Flight', 'CodeSh', 'Code', 'e-Ticket', 'Seat', 'Meal', 'TrvCls', 'Fare', 'Baggage', 'PaxAdditionalInfo', 'AgentInfo'], inplace=True)
-    data.rename(columns={'TravelDoc': 'passenger_id', 'DepartDate': 'flight_date'}, inplace=True)
+    result.rename(columns={'ID': 'passenger_id', 'Date': 'flight_date'}, inplace=True)
 
-    data['flight_date'] = pd.to_datetime(data['flight_date'])
-    data = data.sort_values(by='flight_date')
+    result['flight_date'] = pd.to_datetime(result['flight_date'])
+    result = result.sort_values(by='flight_date')
 
-    return data
+    return result[['passenger_id','flight_date','from_coords','to_coords']]
 
 def create_flight_graph_app(df):
     """
