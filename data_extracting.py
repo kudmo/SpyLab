@@ -4,7 +4,7 @@ import json
 import xml.etree.ElementTree as ET
 import pdfplumber
 import re
-import PyPDF2, os
+import pdfplumber
 
 def extractBoardingData(path: str) -> pd.DataFrame:
     return pd.read_csv(path, sep=';')
@@ -110,63 +110,67 @@ def extractFrequentFlyerForumProfiles(path: str):
     return names_table, flights_table, loyality_table,
 
 
-def convertPdfToDataframe(path: str):
-    with open(path, 'rb') as file:
-        reader = PyPDF2.PdfReader(file)
+def extractSkyteamTimetable(path: str) ->pd.DataFrame:
+    with pdfplumber.open(path) as pdf:
+        tables = []
+        info1 = {'From':None, 'From_Code':None, 'To':None,'To_Code':None}
+        info2 = {'From':None, 'From_Code':None, 'To':None,'To_Code':None}
+        
+        for page_number in range(4, len(pdf.pages)):
+            data = []
+            page = pdf.pages[page_number]
+            # выделение таблицы
+            table_objects = page.extract_tables()
 
-        num_pages = len(reader.pages)
+            data_start = 0
+            # Заголовки таблицы
+            if ('FROM:' in table_objects[0][0]):
+                info1['From'] = table_objects[0][0][1]
+                info1['From_Code'] = table_objects[0][0][7]
 
-        # Loop through all the pages and extract text
-        for i in range(num_pages):
-            page = reader.pages[i]
-            text = page.extract_text()
-            print(f"Page {i+1}:\n{text}\n")
+                info2['From'] = table_objects[0][0][11:][1]
+                info2['From_Code'] = table_objects[0][0][11:][7]
 
+                info1['To'] = table_objects[0][1][1]
+                info1['To_Code'] = table_objects[0][1][7]
 
-    # Открываем PDF-файл
-    pdf = pdfplumber.open(path)
-    extracted_data = []
-    last_from = None
-    last_to = None
+                info2['To'] = table_objects[0][1][11:][1]
+                info2['To_Code'] = table_objects[0][1][11:][7]
+                
+                data_start = 3
 
-        # Регулярные выражения для извлечения данных From и To
-    from_pattern = re.compile(r'FROM:\s+(.+?),\s+(.+?)\s+(\w{3})')
-    to_pattern = re.compile(r'TO:\s+(.+?),\s+(.+?)\s+(\w{3})')
+            # Пропускаем пустые таблицы
+            if ('Consult your travel agent for details' in table_objects[0][data_start]):
+                continue
+        
+            # Проход по таблице
+            for table_object in table_objects[0]:
+                # очистка от пропусков и от лишних данных
+                cleared = list(filter(lambda x: x is not None and x != '' and 'Operated by' not in x, table_object))
+                if (len(cleared) < 7):
+                    continue
+                have_left = True
+                if (table_object[0] == None or table_object[0] == ''):
+                    have_left = False
 
-        # Регулярное выражение для извлечения строк таблицы (дни: от 0 до 7 цифр)
-    pattern = re.compile(r'(\d{2} \w{3}  -  \d{2} \w{3})\s+(\d{0,7})\s+(\d{2}:\d{2})\s+(\d{2}:\d{2})\s+(\w+)\s+(\w+)\s+(\d{1}H\d{2}M)')
+                data1 = [info1['From'],info1['From_Code'], info1['To'], info1['To_Code']]
+                data2 = [info2['From'],info2['From_Code'], info2['To'], info2['To_Code']]
 
-    for i in range(num_pages):
-        if i % 100 == 0:
-            print(f"Iteration No.{i}")
-        page = reader.pages[i]
-        text = page.extract_text()
+                if (len(cleared) == 14):
+                    data1.extend(cleared[:7])
+                    data.append(data1)
 
-            # Попытка извлечь пункты отправления и назначения
-        from_match = from_pattern.search(text)
-        to_match = to_pattern.search(text)
+                    data2.extend(cleared[7:])
+                    data.append(data2)
+                elif have_left:
+                    data1.extend(cleared)
+                    data.append(data1)
+                else:
+                    data2.extend(cleared)
+                    data.append(data2)
+                    
 
-            # Если найден FROM и TO, обновляем последние значения
-        if from_match and to_match:
-            last_from = f"{from_match.group(1)}, {from_match.group(2)} ({from_match.group(3)})"
-            last_to = f"{to_match.group(1)}, {to_match.group(2)} ({to_match.group(3)})"
+            tables.append(pd.DataFrame(data, columns=['From','From_Code','To','To_Code','Validity','Days','Dep_Time','Arr_Time','Flight','Aircraft','Travel_Time']))
+            page.flush_cache()
 
-            # Если на странице нет FROM и TO, остаются последние известные значения
-        if last_from and last_to:
-                # Извлекаем строки таблицы
-            matches = pattern.findall(text)
-
-                # Добавляем найденные строки с полями From и To
-            for match in matches:
-                extracted_data.append(list(match) + [last_from, last_to])
-
-    # Создаем DataFrame
-    columns = ['Validity', 'Days', 'Dep Time', 'Arr Time', 'Flight', 'Aircraft', 'Travel Time', 'From', 'To']
-    df = pd.DataFrame(extracted_data, columns=columns)
-
-    # Вывод DataFrame
-    print(df)
-
-    # Сохранение в CSV (или другой формат)
-    df.to_csv('flights_data.csv', index=False)
-    return df
+        return pd.concat(tables)
