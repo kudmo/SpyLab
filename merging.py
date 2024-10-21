@@ -1,3 +1,4 @@
+'''Модуль функций, для слияния данных'''
 import pandas as pd
 import re
 
