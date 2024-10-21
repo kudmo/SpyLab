@@ -1,21 +1,21 @@
 import pandas as pd
 
-def mergeLoyality(a_df, b_df, c_df):
+def mergeLoyality(df_exchange :pd.DataFrame, df_forum:tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame], df_airlines:pd.DataFrame):
     """
-    на вход функция получает датафреим из файлов .yaml, .json, .xml
-    return: tuple из трех таблиц, где в 0 указано кто и куда летел, в 1 указано кто использовал чужую программу лояльности, во 2 все люди которые есть в базе и их индификаторы b и бонусные программы
+    Returns: 
+        (tuple): три таблицы: кто и куда летел, кто использовал чужую программу лояльности, все люди которые есть в базе и их индификаторы b и бонусные программы
     """
     #синтезируем датафреим состоящий из uid(уникальный индификатор человека), FFKey(код и номер бонусной программы), NickName(ник пользвателя на сайте)
-    a = a_df['FFKey'].drop_duplicates()
-    c = c_df[['card_number', 'uid']].drop_duplicates()
+    a = df_exchange['FFKey'].drop_duplicates()
+    c = df_airlines[['card_number', 'uid']].drop_duplicates()
     a_c = pd.merge(a,c, left_on='FFKey', right_on='card_number', how='outer', copy=False)
     a_c['FFKey'] = a_c['FFKey'].fillna(a_c['card_number'])
     idFKey_df = a_c[['uid', 'FFKey']].copy()
     #ищем людей владеющих одной и той же бонусной программой
     bad = idFKey_df[idFKey_df.duplicated(subset='FFKey')]
     idFKey_df.drop_duplicates(subset='FFKey', inplace=True)
-    user_id = b_df[2]
-    user_id['programm'] = user_id['programm']+user_id['Number']
+    user_id = df_forum[2]
+    user_id['programm'] = user_id['programm']+user_id['Number'].apply(str)
     user_id = user_id[['NickName', 'programm']]
     idFKeyNick_df = pd.merge(idFKey_df, user_id, left_on='FFKey', right_on='programm', how = 'outer')
     idFKeyNick_df['FFKey']= idFKeyNick_df['FFKey'].fillna(idFKeyNick_df['programm'])
@@ -23,11 +23,11 @@ def mergeLoyality(a_df, b_df, c_df):
     #удаляем все записи о людях ползующихся одной программой оставляя только одного владельца для дублирующейся бонусной программы
     idFKeyNick_df = idFKeyNick_df[~idFKeyNick_df['uid'].isin(bad['uid'])]
     #начинаем создавать таблицу всех перелетов для всех людей по-очередно для каждого файла сохраняя эти таблицы в am_df, bm_df, cm_df соотвественно
-    am_df = pd.merge(idFKeyNick_df, a_df, on='FFKey', how='outer')
-    c_df.rename(columns={'card_number':'FFKey'}, inplace=True)
-    cm_df = pd.merge(idFKeyNick_df, c_df, on = ['uid','FFKey'], how='outer')
+    am_df = pd.merge(idFKeyNick_df, df_exchange, on='FFKey', how='outer')
+    df_airlines.rename(columns={'card_number':'FFKey'}, inplace=True)
+    cm_df = pd.merge(idFKeyNick_df, df_airlines, on = ['uid','FFKey'], how='outer')
     uidNick = idFKeyNick_df[['uid','NickName']].drop_duplicates()
-    bm_df = pd.merge(uidNick, b_df[1], on='NickName', how='outer')
+    bm_df = pd.merge(uidNick, df_forum[1], on='NickName', how='outer')
     #удаляем из каждой таблицы все тех людей о которых мы не получили данные о перелетах
     am_df.dropna(subset='Fare', inplace=True)
     bm_df.dropna(subset='Flight', inplace=True)
