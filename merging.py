@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 
 def mergeLoyality(df_exchange :pd.DataFrame, df_forum:tuple[pd.DataFrame,pd.DataFrame,pd.DataFrame], df_airlines:pd.DataFrame):
     """
@@ -14,8 +15,8 @@ def mergeLoyality(df_exchange :pd.DataFrame, df_forum:tuple[pd.DataFrame,pd.Data
     #ищем людей владеющих одной и той же бонусной программой
     bad = idFKey_df[idFKey_df.duplicated(subset='FFKey')]
     idFKey_df.drop_duplicates(subset='FFKey', inplace=True)
-    user_id = df_forum[2]
-    user_id['programm'] = user_id['programm']+user_id['Number'].apply(str)
+    user_id = df_forum[2][['NickName', 'programm', 'Number']]
+    user_id['programm'] = user_id['programm']+' '+user_id['Number'].apply(str)
     user_id = user_id[['NickName', 'programm']]
     idFKeyNick_df = pd.merge(idFKey_df, user_id, left_on='FFKey', right_on='programm', how = 'outer')
     idFKeyNick_df['FFKey']= idFKeyNick_df['FFKey'].fillna(idFKeyNick_df['programm'])
@@ -45,7 +46,7 @@ def mergeLoyality(df_exchange :pd.DataFrame, df_forum:tuple[pd.DataFrame,pd.Data
     res.drop_duplicates(subset=['uid','FFKey', 'Date',	'Flight',	'From',	'To',	'Fare'], inplace= True)
     return (res, bad, idFKeyNick_df)
 
-def mergeToDrawFlights(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame):
+def mergeDataPasports(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame):
     """
     Объединение базовых данных по паспорту, дате, номеру рейса
     Args:
@@ -53,7 +54,7 @@ def mergeToDrawFlights(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame):
         df_boarding (pd.DataFrame): DaraFrame из BoardingData.csv
         timetable (pd.DataFrame): DaraFrame из Skyteam_Timetable.pdf
     Returns:
-        pd.DataFrame: Данные: ['PassengerDocument, 'FlightNumber', 'FlightDate','FlightTime','From','Dest', 'TicketNumber']
+        (pd.DataFrame, pd.DataFrame): Данные: ['PassengerDocument, 'FlightNumber', 'FlightDate','FlightTime','From','Dest', 'TicketNumber'] и таблица соответствий загранников и обычных паспортов
     """
     # Выделяем нужные данные
     df_sirena_d = df_sirena[['TravelDoc', 'e-Ticket','Flight','DepartDate', 'DepartTime', 'From', 'Dest', 'PaxName']]
@@ -85,7 +86,6 @@ def mergeToDrawFlights(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame):
 
     df_boarding_d = df_boarding[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime', 'TicketNumber']]
     df_boarding_d['TicketNumber'] = df_boarding_d['TicketNumber'].apply(lambda col: None if col == 'Not presented' else col)
-    df_boarding_d['PassangerName'] = df_boarding['PassengerLastName'] +' ' +  df_boarding['PassengerFirstName'] + ' ' + df_boarding['PassengerSecondName'].apply(lambda col: col[0])
 
     # находим все случаи "двойных" документов
     double_docs = pd.merge(df_sirena_d[['TicketNumber','PassengerDocument']], df_boarding_d[['TicketNumber','PassengerDocument']], on=['TicketNumber'], how = 'outer')
@@ -112,4 +112,22 @@ def mergeToDrawFlights(df_sirena :pd.DataFrame , df_boarding: pd.DataFrame):
 
     # объединение полётов и чистка дубликатов
     df = pd.concat([df_sirena_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime', 'From', 'Dest','TicketNumber']], df_boarding_d[['PassengerDocument','FlightNumber', 'FlightDate', 'FlightTime','From', 'Dest', 'TicketNumber']]]).dropna().drop_duplicates()
-    return df
+    
+    df_sirena = pd.merge(df_sirena, double_docs, left_on='TravelDoc', right_on='pass', how='left')
+    df_sirena['TravelDoc'] = df_sirena['PassengerDocument'].fillna(df_sirena['TravelDoc'])
+    df_sirena = df_sirena.drop('PassengerDocument',axis=1)
+    return df, double_docs
+
+def mergeLoyalityIdNickPasports(df_sirena, df_loyality_merged):
+    def f(col):
+        m =re.search('FF#\w\w\s\d+', str(col))
+        if m:
+            return m.group().replace('FF#','')
+        return None
+    df_sirena['FFKey'] = df_sirena['PaxAdditionalInfo'].apply(f)
+    df_sirena_lp = df_sirena[['TravelDoc', 'FFKey']].dropna().drop_duplicates()
+    b = pd.merge(df_loyality_merged, df_sirena_lp, on='FFKey', how='outer')
+    b['ID'] = "pass_"+b['TravelDoc']
+    b['ID'] = b['ID'].fillna('id_'+b['uid'])
+    b['ID'] = b['ID'].fillna("nick_"+b['NickName'])
+    return b
