@@ -4,7 +4,7 @@ from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime
-
+import numpy as np
 
 def get_dataframe_for_work(data, airports):
 
@@ -13,9 +13,9 @@ def get_dataframe_for_work(data, airports):
     result['from_lon'] = result['From'].map(airports.set_index('iata_code')['longitude'])
     result['to_lat'] = result['To'].map(airports.set_index('iata_code')['latitude'])
     result['to_lon'] = result['To'].map(airports.set_index('iata_code')['longitude'])
-
-    result['from_coords'] = list(zip(result['from_lat'], result['from_lon']))
-    result['to_coords'] = list(zip(result['to_lat'], result['to_lon']))
+    result = result.dropna()
+    result['from_coords'] = list(zip(result['from_lat'].astype(np.float64), result['from_lon'].astype(np.float64)))
+    result['to_coords'] = list(zip(result['to_lat'].astype(np.float64), result['to_lon'].astype(np.float64)))
 
     result.rename(columns={'ID': 'passenger_id', 'Date': 'flight_date'}, inplace=True)
 
